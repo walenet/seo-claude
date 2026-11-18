@@ -174,3 +174,23 @@ In sintesi: LCP tra 2,9 e 3,7 s su quasi tutte le pagine interne (la soglia "buo
 - **Abilitare `caldoefreddoroma.com` nella rete dell'ambiente** per verificare robots.txt, sitemap, canonical, schema generato da Yoast, HTML finale e Core Web Vitals (PageSpeed/CrUX).
 - **Collegare Google Search Console** per avere dati reali su indicizzazione e cannibalizzazione.
 - **Fare un audit locale dedicato** (`/seo local`) su Google Business Profile, recensioni e citazioni.
+
+## Interventi eseguiti (18 novembre 2026)
+
+Title SEO corretti, approvati dal titolare, verificati sul sito dal vivo:
+
+| Pagina | Nuovo title |
+|---|---|
+| /installazione-e-manutenzione-gruppi-frigo-chiller/ | Installazione e manutenzione chiller a Roma \| Caldo e Freddo |
+| /installazione-pannelli-solari/ | Installazione pannelli solari a Roma \| Caldo e Freddo Roma |
+| /installazione-stufe-a-pellet/ | Installazione stufe a pellet a Roma \| Caldo e Freddo Roma |
+| /realizzazione-impianti-di-climatizzazione-a-pavimento-e-soffitto/ | Impianti radianti a pavimento e soffitto a Roma |
+| /realizzazione-impianti-di-riscaldamento-condizionamento-e-gas/ | Impianti di riscaldamento, condizionamento e gas a Roma |
+| /rilascio-bollino-condizionatori-e-caldaie/ | Bollino caldaie e condizionatori a Roma \| Caldo e Freddo |
+| /ristrutturazioni/ | Ristrutturazioni a Roma e provincia \| Caldo e Freddo Roma |
+| /sopralluoghi-e-preventivi-per-caldaie-condizionatori/ | Sopralluoghi e preventivi caldaie e climatizzatori a Roma |
+| /assistenza-manutenzione-ed-installazione-caldaie/ | Installazione e manutenzione caldaie a Roma \| Caldo e Freddo |
+
+**Non applicato:** /rilascio-certificazioni-energetiche/. Il connettore non riesce a salvare la revisione di ripristino e quindi blocca la modifica. Va corretto a mano in Yoast con il title "Certificazioni energetiche a Roma | Caldo e Freddo Roma".
+
+**Nuovo problema trovato durante il lavoro:** su /installazione-stufe-a-pellet/ e /rilascio-bollino-condizionatori-e-caldaie/ il pulsante "chiama ora" punta a `tel:+394076762`: manca "328", quindi la chiamata non va al numero giusto. Il testo visibile invece è corretto.
