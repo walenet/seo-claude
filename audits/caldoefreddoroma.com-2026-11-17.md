@@ -194,3 +194,7 @@ Title SEO corretti, approvati dal titolare, verificati sul sito dal vivo:
 **Non applicato:** /rilascio-certificazioni-energetiche/. Il connettore non riesce a salvare la revisione di ripristino e quindi blocca la modifica. Va corretto a mano in Yoast con il title "Certificazioni energetiche a Roma | Caldo e Freddo Roma".
 
 **Nuovo problema trovato durante il lavoro:** su /installazione-stufe-a-pellet/ e /rilascio-bollino-condizionatori-e-caldaie/ il pulsante "chiama ora" punta a `tel:+394076762`: manca "328", quindi la chiamata non va al numero giusto. Il testo visibile invece è corretto.
+
+### Aggiornamento del 18 novembre, pomeriggio
+- **Pubblicata la nuova versione di /assistenza-manutenzione-ed-installazione-caldaie/.** Il testo occupa tutta la larghezza su mobile (390/390 px, senza scorrimento orizzontale). Il contenuto è aggiornato: H1 "Installazione e manutenzione caldaie a Roma", corretta l'informazione sulla frequenza del bollino, dicitura Ariston uniformata, link alle marche e a tutte le 22 zone, nuova meta description. Il vecchio JSON-LD (Service e FAQ, con errori) è stato rimosso.
+- **Scheda unica `HVACBusiness`:** il connettore non permette di inserire script né microdati, e la copia della pagina Contatti corrompe il suo blocco `<style>`. Per questo la copia non è stata pubblicata. Il codice pronto è in `audits/caldoefreddoroma-schema-hvacbusiness.html` e va incollato in Avada → Opzioni → Avanzate → Campi codice → "Spazio prima di </head>".
