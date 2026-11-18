@@ -198,3 +198,8 @@ Title SEO corretti, approvati dal titolare, verificati sul sito dal vivo:
 ### Aggiornamento del 18 novembre, pomeriggio
 - **Pubblicata la nuova versione di /assistenza-manutenzione-ed-installazione-caldaie/.** Il testo occupa tutta la larghezza su mobile (390/390 px, senza scorrimento orizzontale). Il contenuto è aggiornato: H1 "Installazione e manutenzione caldaie a Roma", corretta l'informazione sulla frequenza del bollino, dicitura Ariston uniformata, link alle marche e a tutte le 22 zone, nuova meta description. Il vecchio JSON-LD (Service e FAQ, con errori) è stato rimosso.
 - **Scheda unica `HVACBusiness`:** il connettore non permette di inserire script né microdati, e la copia della pagina Contatti corrompe il suo blocco `<style>`. Per questo la copia non è stata pubblicata. Il codice pronto è in `audits/caldoefreddoroma-schema-hvacbusiness.html` e va incollato in Avada → Opzioni → Avanzate → Campi codice → "Spazio prima di </head>".
+
+### Aggiornamento del 18 novembre, sera (verificato dal vivo)
+- **Scheda `HVACBusiness` attiva in tutto il sito**, inserita dal titolare in Avada → Campi codice. JSON valido, con indirizzo Via Giovanni Borromeo 10, 00166 Roma, telefono, email, P.IVA e profili social. Le criticità 2 e D sono risolte per i dati strutturati; resta da mostrare l'indirizzo come testo nella pagina Contatti.
+- **Archivi tag in noindex:** le pagine `/tag/…` ora rispondono `noindex, follow` e `post_tag-sitemap.xml` è uscita da `sitemap_index.xml`. Criticità B risolta.
+- **Pagina /rilascio-certificazioni-energetiche/ spostata nel cestino** su richiesta del titolare, che non rilascia APE: risponde 404 ed è fuori dalla sitemap.
