@@ -12,19 +12,71 @@ La rete di questo ambiente blocca caldoefreddoroma.com e la richiesta di sblocca
 - lettura completa di 9 contenuti: home, Assistenza Caldaie Roma, Caldaie Casalotti, Caldaie Boccea, Condizionatore Casalotti, Caldaie Baxi, Contatti, Dove siamo, /ai/;
 - campi Yoast (title e meta description) delle pagine lette.
 
-**Cosa non è stato verificato:** robots.txt, sitemap XML, header HTTP, redirect, canonical, HTML finale (header, footer, schema generato da Yoast), Core Web Vitals, indicizzazione, backlink e Google Business Profile. Il punteggio Tecnico e quello Performance sono quindi **stime provvisorie**.
+**Aggiornamento del 18 novembre 2026:** dopo lo sblocco della rete ho verificato il sito dal vivo. Ho scansionato tutte le 143 URL delle sitemap di articoli, pagine e categorie, ho controllato robots.txt, sitemap, header, canonical, meta robots e l'HTML finale, e ho misurato le performance con Lighthouse (mobile, 7 pagine). I risultati sono nella sezione "Verifica tecnica dal vivo" qui sotto.
 
-## SEO Health Score: circa 65/100 (provvisorio)
+**Cosa resta non verificato:** i dati reali di Core Web Vitals degli utenti (CrUX), perché senza una chiave API PageSpeed Insights risponde con l'errore 429 di quota esaurita. Restano fuori anche il redirect da http e da www, che il proxy dell'ambiente non permette di testare, Search Console, backlink e Google Business Profile.
+
+## SEO Health Score: 68/100
 
 | Categoria | Peso | Punteggio | Nota |
 |---|---|---|---|
-| SEO tecnico | 22% | 60* | *non verificato dal vivo |
-| Qualità dei contenuti | 23% | 72 | contenuti tecnici solidi, ma molto testo ripetuto tra le pagine di zona |
-| SEO on-page | 20% | 68 | H1 mancante su alcuni template, cannibalizzazione |
-| Schema / dati strutturati | 10% | 55 | entità aziendale incoerente, nessun indirizzo |
-| Performance (CWV) | 10% | 55* | *stimata dal codice sorgente |
+| SEO tecnico | 22% | 70 | 143/143 URL rispondono 200, canonical corretti; 157 archivi tag indicizzati, HSTS assente |
+| Qualità dei contenuti | 23% | 70 | contenuti tecnici solidi, ma pagine di zona molto simili e 14 pagine servizio sotto le 300 parole |
+| SEO on-page | 20% | 62 | 10 title corrotti, H1 doppio su 28 pagine, cannibalizzazione |
+| Schema / dati strutturati | 10% | 55 | nessun LocalBusiness/HVACBusiness su 123 pagine su 143, nessun indirizzo |
+| Performance (dati di laboratorio) | 10% | 75 | Lighthouse mobile 83-91, LCP 2,0-3,7 s, CLS 0 |
 | Pronto per la ricerca AI | 10% | 75 | hub /ai/, risposte brevi e citabili, autore riconoscibile |
-| Immagini | 5% | 70 | alt presenti, ma loghi presi da siti terzi e foto riusate tra marchi diversi |
+| Immagini | 5% | 70 | alt presenti, ma loghi presi da siti terzi e og:image del 2016 su 36 pagine |
+
+## Verifica tecnica dal vivo (18 novembre)
+
+### Cosa funziona
+- Tutte le 143 URL delle sitemap rispondono 200 e hanno il canonical che punta a sé stesse. Nessuna pagina in noindex per errore.
+- Le pagine inesistenti restituiscono un vero 404 in noindex. La ricerca interna è in noindex. Gli archivi autore fanno redirect alla home. L'elenco utenti della REST API è bloccato (403).
+- robots.txt è corretto e punta a `sitemap_index.xml`. Non blocca i crawler AI: GPTBot riceve 200.
+- La cache LiteSpeed è attiva (TTFB circa 0,55 s con cache, 1,1 s senza).
+- CLS 0 su tutte le pagine testate.
+
+### Problemi trovati
+
+**A. 10 title SEO corrotti (alta priorità, correzione rapida).** Il campo title di Yoast contiene ancora le variabili di un vecchio modello (`%%sitename%%, %%parent_title%% %%title%%`) davanti al title vero. Su Google risultano title di 95-148 caratteri, con il nome del servizio ripetuto due volte. Esempio: "Caldo e Freddo Roma, Installazione pannelli solari Installazione pannelli solari Roma | Caldo e Freddo Roma". Pagine coinvolte: chiller, pannelli solari, stufe a pellet, impianti radianti a pavimento e soffitto, impianti riscaldamento/condizionamento/gas, rilascio bollino, certificazioni energetiche, ristrutturazioni, sopralluoghi e preventivi, assistenza manutenzione e installazione caldaie. Anche Contatti e Offerte hanno title deboli ("Caldo e Freddo Roma, Contatti").
+
+**B. 157 archivi tag indicizzati (alta priorità).** La sitemap `post_tag-sitemap.xml` contiene 157 pagine tag in `index, follow`, compresa `/tag/a/`. Per 42 articoli sono pagine quasi vuote e duplicate: sprecano budget di scansione e diluiscono la qualità del sito. *Azione:* in Yoast, Aspetto della ricerca → Tassonomie → Tag, impostare "Mostra i tag nei risultati di ricerca" su No. È un'impostazione globale, quindi va fatta dal pannello di WordPress.
+
+**C. H1 doppio su 28 pagine (media priorità).** Le 10 pagine marca e 18 articoli hanno due H1: uno generato dal titolo del tema Avada e uno scritto nel contenuto. *Correzione rispetto a ieri:* le pagine di zona dei condizionatori un H1 ce l'hanno, generato da Avada; il problema segnalato al punto 4 non esiste. *Azione:* sulle pagine marca e negli articoli trasformare in H2 l'H1 del contenuto, oppure nascondere il titolo del tema.
+
+**D. Schema aziendale incompleto (alta priorità).** Yoast pubblica su tutte le pagine solo un `Organization` senza indirizzo. `HVACBusiness` compare solo sulle 19 pagine condizionatori e `LocalBusiness` solo su una pagina. Nell'HTML della home e del footer l'indirizzo non compare: solo telefono, email e P.IVA. Questo conferma il punto 2.
+
+**E. Pagine servizio troppo brevi (media priorità).** 14 pagine sono sotto le 300 parole: idraulica, chiller, pannelli solari, pompe di calore, stufe a pellet, impianti radianti, impianti gas, bollino, certificazioni, ristrutturazioni, offerte, contatti, dove siamo, categoria video. Sono le stesse pagine con i title corrotti: vanno arricchite oppure accorpate in /servizi/.
+
+**F. Immagine social obsoleta (bassa priorità).** 36 pagine usano come og:image il logo del 2016 (`2016/09/logo.png`). Basta impostare in Yoast un'immagine predefinita aggiornata.
+
+**G. Categorie senza meta description (bassa priorità).** 7 archivi di categoria non hanno description. "Notizie" ha come description solo "Notizie importanti".
+
+**H. Header di sicurezza assenti (bassa priorità).** Mancano HSTS, X-Content-Type-Options e Referrer-Policy. Si aggiungono dal pannello LiteSpeed/hosting o con `.htaccess`.
+
+### Performance (Lighthouse mobile, laboratorio)
+
+| Pagina | Punteggio | LCP | TBT | CLS |
+|---|---|---|---|---|
+| Home | 88 | 2,0 s | 450 ms | 0 |
+| Assistenza caldaie Roma | 88 | 3,4 s | 50 ms | 0 |
+| Caldaie Casalotti | 90 | 3,1 s | 20 ms | 0 |
+| Condizionatore Casalotti | 91 | 2,9 s | 10 ms | 0 |
+| Caldaie Baxi | 91 | 3,0 s | 40 ms | 0 |
+| Pressione giusta caldaia | 83 | 3,7 s | 200 ms | 0 |
+| Contatti | 89 | 3,1 s | 20 ms | 0 |
+
+Come leggere questi dati:
+- Le misure passano dal proxy dell'ambiente, che aggiunge latenza.
+- Il proxy ha bloccato gli script di terze parti (Google Tag Manager, widget recensioni TrustIndex). Nella realtà il TBT sarà più alto.
+- Sono dati di laboratorio, non dati reali degli utenti.
+
+In sintesi: LCP tra 2,9 e 3,7 s su quasi tutte le pagine interne (la soglia "buono" è 2,5 s). Il problema non sono le immagini: l'elemento LCP è quasi sempre un testo. Le cause sono il tempo di risposta del server (0,7-0,9 s senza cache) e circa 950 ms di CSS e JS che bloccano il rendering, con circa 150 KB di CSS inutilizzato per pagina.
+
+*Correzione rispetto a ieri:* sulle pagine di zona caldaie l'immagine hero con lazy-load non è l'elemento LCP. Il punto 6 scende quindi a bassa priorità.
+
+*Azioni:* in LiteSpeed Cache attivare "Load CSS Asynchronously" con Critical CSS e "Load JS Deferred". In Avada (Performance) attivare "Critical CSS" e "Dynamic CSS Compiler", e disattivare le librerie JS non usate: GSAP, ScrollTrigger, swiper, ilightbox. Valutare il preload della cache con il crawler di LiteSpeed. Sulla home ridurre il TBT (450 ms) caricando TrustIndex solo dopo l'interazione o con un ritardo.
 
 ## Punti di forza
 
@@ -61,7 +113,7 @@ La rete di questo ambiente blocca caldoefreddoroma.com e la richiesta di sblocca
 - *Azione:* scegliere una pagina principale per ciascun gruppo e unire le altre con redirect 301. Per le date stagionali tenere un URL fisso senza anno (es. `/accensione-riscaldamento-roma/`) e aggiornarlo ogni anno.
 - *Come capire se non funziona:* in Search Console più URL che ricevono impressioni per la stessa query.
 
-**4. H1 mancante su tutte le pagine di zona dei condizionatori (probabile)**
+**4. ~~H1 mancante sulle pagine di zona dei condizionatori~~ (smentito dalla verifica dal vivo: l'H1 lo genera Avada. Il problema reale è l'H1 doppio, vedi punto C)**
 - La pagina Condizionatore Casalotti usa un `<h2>` come titolo principale e il contenuto non ha nessun H1. Il template è lo stesso per tutte le 22 pagine. Anche la pagina /ai/ non ha un H1 nel contenuto. Bisogna verificare dal vivo se Avada aggiunge un H1 nella barra del titolo, ma le pagine caldaie la nascondono via CSS, quindi probabilmente non c'è.
 - *Azione:* trasformare in `<h1>` il titolo principale del template condizionatori e aggiungere un H1 alla pagina /ai/.
 
