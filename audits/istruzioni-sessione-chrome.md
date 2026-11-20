@@ -98,12 +98,16 @@ LiteSpeed Cache → Crawler: attiva il crawler (preload della cache), con la sit
 
 ## 6. Google Search Console
 Apri https://search.google.com/search-console/sitemaps?resource_id=sc-domain%3Acaldoefreddoroma.com&hl=IT
-- Elenca tutte le sitemap inviate. Tieni solo sitemap_index.xml, page-sitemap.xml, post-sitemap.xml, category-sitemap.xml. Mostrami le altre (in particolare quella del 26 ott 2021 "Impossibile recuperare") e, dopo il mio OK, rimuovile (⋮ → Rimuovi sitemap).
+- Elenca tutte le sitemap inviate. Tieni solo sitemap_index.xml, page-sitemap.xml, post-sitemap.xml, category-sitemap.xml. La vecchia sitemap del 26 ott 2021 ("Impossibile recuperare") potrei averla già rimossa a mano: se non c'è più, scrivimi solo "già rimossa" e vai avanti. Se invece c'è, o ci sono altre sitemap oltre alle 4 da tenere, mostramele e, dopo il mio OK, rimuovile (⋮ → Rimuovi sitemap).
 - Reinvia sitemap_index.xml.
 - Indicizzazione → Pagine → "Errore di reindirizzamento" → "Convalida correzione".
 
-## 7. Ahrefs, errore dati strutturati
-In Ahrefs, progetto Caldoefreddoroma → Site Audit → issue "Structured data has Google rich results validation error". Apri una delle pagine (es. /assistenza-climatizzatore-roma/casalotti/) e riportami il **testo esatto dell'errore**. Poi apri https://search.google.com/test/rich-results, testa la stessa pagina e riportami gli errori e gli avvisi di "Attività commerciale locale". Non modificare niente: riportami solo i messaggi.
+## 7. Errore dati strutturati (test gratuito di Google)
+Apri https://search.google.com/test/rich-results e testa queste due pagine, una alla volta:
+- https://caldoefreddoroma.com/assistenza-climatizzatore-roma/casalotti/
+- https://caldoefreddoroma.com/
+Per ognuna riportami il **testo esatto** di tutti gli errori e gli avvisi (soprattutto "Attività commerciale locale" / "Local business" e "Organizzazione"). Non modificare niente: riportami solo i messaggi.
+Facoltativo: se Ahrefs si apre con il mio account, vai in Site Audit → issue "Structured data has Google rich results validation error" e riportami il messaggio di una pagina. Se Ahrefs non si apre o chiede un abbonamento, salta questa parte.
 
 ## 8. Google Business Profile (solo lettura)
 Apri il profilo dell'attività e riportami esattamente nome, indirizzo, telefono, sito web, categoria e orari. Confrontali con: "Caldo & Freddo di Renzetti Valerio", "Via Giovanni Borromeo 10, 00166 Roma RM", "+39 328 407 6762", https://caldoefreddoroma.com/. Non salvare modifiche.
