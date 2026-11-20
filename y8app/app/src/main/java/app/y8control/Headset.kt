@@ -168,21 +168,40 @@ object Headset {
         }.let {}
 
         override fun onServicesDiscovered(g: BluetoothGatt, status: Int) = main.post {
+            // diagnostica: elenco completo di servizi e caratteristiche
+            g.services.forEach { sv ->
+                log("SVC ${short(sv.uuid)}: " + sv.characteristics.joinToString { c -> short(c.uuid) + "[" + props(c.properties) + "]" })
+            }
             val svc = g.getService(Proto.SERVICE)
             if (svc == null) {
-                log("Servizio FAA0 non trovato. Servizi: " + g.services.joinToString { it.uuid.toString().substring(4, 8) })
+                log("Servizio FAA0 non trovato")
                 return@post
             }
             writeChar = svc.getCharacteristic(Proto.WRITE)
-            val n = svc.getCharacteristic(Proto.NOTIFY)
-            if (writeChar == null || n == null) { log("Caratteristiche FAA1/FAA2 mancanti"); return@post }
-            g.setCharacteristicNotification(n, true)
-            val d = n.getDescriptor(Proto.CCCD)
-            if (d != null) g.writeDescriptor(d, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE) else onReady()
+            if (writeChar == null) { log("Caratteristica FAA1 mancante"); return@post }
+            // attiva notifiche/indicazioni su TUTTE le caratteristiche che le supportano (servizi non standard)
+            cccdQueue.clear()
+            g.services.filter { !short(it.uuid).startsWith("180") }.forEach { sv ->
+                sv.characteristics.forEach { c ->
+                    val canN = c.properties and BluetoothGattCharacteristic.PROPERTY_NOTIFY != 0
+                    val canI = c.properties and BluetoothGattCharacteristic.PROPERTY_INDICATE != 0
+                    if (canN || canI) {
+                        g.setCharacteristicNotification(c, true)
+                        c.getDescriptor(Proto.CCCD)?.let { d ->
+                            val v = if (canN) BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                                else BluetoothGattDescriptor.ENABLE_INDICATION_VALUE
+                            cccdQueue.addLast(Pair(d, v))
+                        }
+                    }
+                }
+            }
+            nextCccd(g)
         }.let {}
 
-        override fun onDescriptorWrite(g: BluetoothGatt, d: BluetoothGattDescriptor, status: Int) =
-            main.post { onReady() }.let {}
+        override fun onDescriptorWrite(g: BluetoothGatt, d: BluetoothGattDescriptor, status: Int) = main.post {
+            log("Notifiche ${short(d.characteristic.uuid)}: " + if (status == 0) "attive" else "ERRORE $status")
+            nextCccd(g)
+        }.let {}
 
         override fun onCharacteristicWrite(g: BluetoothGatt, c: BluetoothGattCharacteristic, status: Int) = main.post {
             if (status != BluetoothGatt.GATT_SUCCESS) log("Scrittura fallita ($status)")
@@ -192,8 +211,45 @@ object Headset {
 
         override fun onCharacteristicChanged(g: BluetoothGatt, c: BluetoothGattCharacteristic, value: ByteArray) {
             val copy = value.copyOf()
-            main.post { Proto.split(copy).forEach { handle(it) } }
+            main.post {
+                if (c.uuid != Proto.NOTIFY) log("(da ${short(c.uuid)})")
+                val pk = Proto.split(copy)
+                if (pk.isEmpty()) log("<< grezzo ${Proto.hex(copy)}") else pk.forEach { handle(it) }
+            }
         }
+
+        override fun onCharacteristicRead(g: BluetoothGatt, c: BluetoothGattCharacteristic, value: ByteArray, status: Int) {
+            val copy = value.copyOf()
+            main.post { log("lettura ${short(c.uuid)} ($status): ${Proto.hex(copy)}"); Proto.split(copy).forEach { handle(it) } }
+        }
+
+        override fun onMtuChanged(g: BluetoothGatt, mtu: Int, status: Int) = main.post { log("MTU $mtu ($status)") }.let {}
+    }
+
+    private val cccdQueue = ArrayDeque<Pair<BluetoothGattDescriptor, ByteArray>>()
+
+    private fun nextCccd(g: BluetoothGatt) {
+        val next = cccdQueue.removeFirstOrNull()
+        if (next == null) { onReady(); return }
+        val rc = g.writeDescriptor(next.first, next.second)
+        if (rc != 0) { log("CCCD ${short(next.first.characteristic.uuid)} errore avvio $rc"); main.postDelayed({ nextCccd(g) }, 200) }
+    }
+
+    private fun short(u: java.util.UUID) = u.toString().substring(4, 8).uppercase()
+
+    private fun props(p: Int) = buildString {
+        if (p and BluetoothGattCharacteristic.PROPERTY_READ != 0) append("R")
+        if (p and BluetoothGattCharacteristic.PROPERTY_WRITE != 0) append("W")
+        if (p and BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE != 0) append("w")
+        if (p and BluetoothGattCharacteristic.PROPERTY_NOTIFY != 0) append("N")
+        if (p and BluetoothGattCharacteristic.PROPERTY_INDICATE != 0) append("I")
+    }
+
+    /** Lettura diretta della caratteristica di notifica (diagnostica) */
+    fun readNotifyChar() {
+        val c = gatt?.getService(Proto.SERVICE)?.getCharacteristic(Proto.NOTIFY) ?: return
+        if (c.properties and BluetoothGattCharacteristic.PROPERTY_READ != 0) gatt?.readCharacteristic(c)
+        else log("FAA2 non leggibile")
     }
 
     private fun onReady() {
@@ -219,7 +275,8 @@ object Headset {
         val type = if (c.properties and BluetoothGattCharacteristic.PROPERTY_WRITE != 0)
             BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT else BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
         val rc = g.writeCharacteristic(c, f, type)
-        log(">> ${Proto.hex(f)}" + if (rc != 0) "  (errore $rc)" else "")
+        log(">> ${Proto.hex(f)}" + (if (type == BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE) " [nr]" else "") +
+            (if (rc != 0) "  (errore $rc)" else ""))
         writing = true
         main.postDelayed({ if (writing) { writing = false; pump() } }, 600)
     }

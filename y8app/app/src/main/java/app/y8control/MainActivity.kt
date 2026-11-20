@@ -344,6 +344,10 @@ fun ToolsSection(logs: List<String>) {
                 if (code.length == 2) try { Headset.send(code, Proto.parseHex(data)) } catch (e: Exception) { Headset.log("Hex non valido") }
             }) { Text("Invia") }
         }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = { Headset.readNotifyChar() }) { Text("Leggi FAA2") }
+            OutlinedButton(onClick = { Headset.refreshAll() }) { Text("Richiedi stato") }
+        }
         Text("Registro", fontWeight = FontWeight.SemiBold)
         logs.take(40).forEach { Text(it, fontFamily = FontFamily.Monospace, fontSize = 11.sp) }
     }
