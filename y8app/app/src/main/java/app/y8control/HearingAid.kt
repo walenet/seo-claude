@@ -86,7 +86,8 @@ object HearingAid {
         val fs = 48000
         val am = ctx.getSystemService(AudioManager::class.java)
         val unprocessed = am.getProperty(AudioManager.PROPERTY_SUPPORT_AUDIO_SOURCE_UNPROCESSED) == "true"
-        val source = if (unprocessed) MediaRecorder.AudioSource.UNPROCESSED else MediaRecorder.AudioSource.VOICE_RECOGNITION
+        // VOICE_PERFORMANCE = percorso a bassa latenza pensato per ascolto dal vivo (karaoke/monitor)
+        val source = MediaRecorder.AudioSource.VOICE_PERFORMANCE
 
         val inMin = AudioRecord.getMinBufferSize(fs, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
         val outMin = AudioTrack.getMinBufferSize(fs, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT)
@@ -98,7 +99,7 @@ object HearingAid {
                 .setAudioSource(source)
                 .setAudioFormat(AudioFormat.Builder().setSampleRate(fs)
                     .setChannelMask(AudioFormat.CHANNEL_IN_MONO).setEncoding(AudioFormat.ENCODING_PCM_16BIT).build())
-                .setBufferSizeInBytes(inMin * 2)
+                .setBufferSizeInBytes(inMin)
                 .build()
             rec = mic
             am.getDevices(AudioManager.GET_DEVICES_INPUTS)
@@ -117,15 +118,18 @@ object HearingAid {
                 .setTransferMode(AudioTrack.MODE_STREAM)
                 .build()
             track = out
+            var frames = out.setBufferSizeInFrames(96 * 4)
             val sup = ns
 
             mic.startRecording()
             out.play()
-            Headset.log("Microfono: ${if (unprocessed) "non elaborato" else "voice recognition"}, NS di sistema: ${sup != null}")
+            Headset.log("Microfono bassa latenza, buffer uscita $frames campioni (${frames * 1000 / fs} ms), NS: ${sup != null}, unprocessed: $unprocessed")
 
             val hp = Biquad(); val pk = Biquad()
             var seen = -1
-            val n = 240 // 5 ms
+            val n = 96 // 2 ms
+            var underruns = out.underrunCount
+            var lastCheck = System.currentTimeMillis()
             val buf = ShortArray(n)
             var env = 0f
             var gate = 1f
@@ -161,6 +165,17 @@ object HearingAid {
                     buf[i] = (x * 32767f).toInt().coerceIn(-32768, 32767).toShort()
                 }
                 out.write(buf, 0, r)
+                // buffer adattivo: se l'uscita resta senza dati (scricchiolii) lo allarga un poco
+                val now = System.currentTimeMillis()
+                if (now - lastCheck > 1000) {
+                    lastCheck = now
+                    val u = out.underrunCount
+                    if (u > underruns && frames < 96 * 20) {
+                        frames = out.setBufferSizeInFrames(frames + 96)
+                        Headset.log("Buffer uscita → $frames campioni")
+                    }
+                    underruns = u
+                }
             }
         } catch (e: Exception) {
             Headset.log("Apparecchio acustico: errore ${e.message}")
