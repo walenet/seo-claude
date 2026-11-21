@@ -374,6 +374,7 @@ fun AdvancedAncSection(connected: Boolean) {
                 r.modes.isEmpty() && r.current == null -> "Le cuffie rispondono ma non riportano livelli ANC."
                 else -> "Livelli ANC disponibili ✔"
             }, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Autenticazione: ${r.auth}", fontSize = 13.sp)
         r.current?.let { c ->
             Text("Attuale: ${Presets.ANC.getOrElse(c.mode) { "?" }} · livello ${c.leftCur}/${c.leftMax}")
         }
@@ -393,6 +394,7 @@ fun AdvancedAncSection(connected: Boolean) {
             r.attrs.forEach { (k, v) -> Text("• ${Rcsp.ATTR_NAMES[k] ?: "attr $k"} ($k): $v", fontSize = 12.sp) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = { Rcsp.startAuth() }, enabled = connected) { Text("Autentica") }
             OutlinedButton(onClick = { Rcsp.query() }, enabled = connected) { Text("Leggi") }
             OutlinedButton(onClick = { Rcsp.queryTargetInfo() }, enabled = connected) { Text("Info chip") }
         }

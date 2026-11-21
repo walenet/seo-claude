@@ -13,6 +13,7 @@ import java.util.UUID
 object Rcsp {
     val SERVICE: UUID = UUID.fromString("0000ae00-0000-1000-8000-00805f9b34fb")
     val WRITE: UUID = UUID.fromString("0000ae01-0000-1000-8000-00805f9b34fb")
+    val NOTIFY: UUID = UUID.fromString("0000ae02-0000-1000-8000-00805f9b34fb")
 
     const val OP_GET_TARGET_INFO = 0x03
     const val OP_GET_SYS_INFO = 0x07
@@ -63,6 +64,7 @@ object Rcsp {
         val current: VoiceMode? = null,
         val modes: Map<Int, VoiceMode> = emptyMap(),
         val attrs: Map<Int, String> = emptyMap(),   // attributi riportati dal dispositivo (hex)
+        val auth: String = "non avviata",
     )
 
     private val _state = MutableStateFlow(State())
@@ -109,6 +111,47 @@ object Rcsp {
     }
 
     fun sendRaw(op: Int, params: ByteArray) = Headset.sendRcsp(packet(op, params))
+
+    // ---------------- autenticazione ----------------
+
+    private var authOk = false
+    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+
+    fun startAuth() {
+        authOk = false
+        if (!JlAuth.selfTest()) { setAuth("cifrario errato (self-test fallito)"); return }
+        setAuth("in corso…")
+        Headset.log("RCSP: avvio autenticazione JieLi")
+        Headset.sendRcsp(JlAuth.randomPacket())
+        handler.postDelayed({
+            if (!authOk) {
+                setAuth("nessuna risposta: provo comunque i comandi")
+                query()
+            }
+        }, 4000)
+    }
+
+    private fun setAuth(s: String) = _state.update { it.copy(auth = s) }
+
+    /** Byte grezzi (non FE DC BA) ricevuti su AE02: fasi dell'autenticazione */
+    fun onRaw(b: ByteArray) {
+        Headset.log("AUTH << ${Proto.hex(b)}")
+        if (b.isEmpty()) return
+        when {
+            b[0].toInt() == 1 && b.size == 17 -> {        // risposta alla nostra sfida
+                Headset.sendRcsp(JlAuth.PASS)
+            }
+            b[0].toInt() == 0 && b.size == 17 -> {        // sfida delle cuffie
+                Headset.sendRcsp(JlAuth.answer(b))
+            }
+            b[0].toInt() == 2 && b.size >= 5 && String(b, 1, 4, Charsets.US_ASCII) == "pass" -> {
+                authOk = true
+                setAuth("riuscita ✔")
+                Headset.log("RCSP: autenticazione riuscita ✔")
+                handler.postDelayed({ query() }, 200)
+            }
+        }
+    }
 
     // ---------------- ricezione ----------------
 

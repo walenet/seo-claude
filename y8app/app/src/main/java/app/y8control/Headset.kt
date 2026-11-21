@@ -216,6 +216,7 @@ object Headset {
             val copy = value.copyOf()
             main.post {
                 if ((copy.firstOrNull()?.toInt() ?: 0) and 0xFF == 0xFE) { Rcsp.onPacket(copy); return@post }
+                if (c.uuid == Rcsp.NOTIFY) { Rcsp.onRaw(copy); return@post }
                 if (c.uuid != Proto.NOTIFY) log("(da ${short(c.uuid)})")
                 val pk = Proto.split(copy)
                 if (pk.isEmpty()) log("<< ? ${Proto.hex(copy)}") else pk.forEach { handle(it) }
@@ -260,7 +261,7 @@ object Headset {
         _state.update { it.copy(conn = Conn.CONNECTED) }
         log("Pronte ✔")
         refreshAll()
-        main.postDelayed({ Rcsp.query() }, 1500)
+        main.postDelayed({ Rcsp.startAuth() }, 1200)
     }
 
     // ---------------- invio ----------------
