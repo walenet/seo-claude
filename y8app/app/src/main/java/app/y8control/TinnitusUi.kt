@@ -87,6 +87,8 @@ data class TinProfile(
 }
 
 object TinPrefs {
+    /** incrementato a ogni salvataggio: la sezione Sollievo si aggiorna da sola */
+    val version = kotlinx.coroutines.flow.MutableStateFlow(0)
     private fun sp(c: Context) = c.getSharedPreferences("tinnitus", Context.MODE_PRIVATE)
     fun profile(c: Context, ear: Int): TinProfile {
         val s = sp(c)
@@ -97,6 +99,7 @@ object TinPrefs {
     fun save(c: Context, ear: Int, p: TinProfile) = sp(c).edit()
         .putInt("t$ear", p.type.ordinal).putFloat("f$ear", p.freq.toFloat()).putFloat("r$ear", p.modRate.toFloat())
         .putFloat("d$ear", p.modDepth.toFloat()).putBoolean("h$ear", p.hops).putFloat("l$ear", p.levelDb.toFloat()).apply()
+        .also { version.value++ }
     fun audiogram(c: Context): String = sp(c).getString("audiogram", "") ?: ""
     fun setAudiogram(c: Context, s: String) = sp(c).edit().putString("audiogram", s).apply()
 }
@@ -246,8 +249,9 @@ fun TinnitusSection() {
     Section("🌿 Sollievo acufene su misura") {
         Hint("Ogni orecchio riceve la contromisura adatta al suo acufene, in contemporanea. Volume basso: il suono " +
             "deve fondersi con il fischio, non coprirlo. Non è una cura, ma a molte persone dà sollievo.")
-        val profiles = remember { mutableStateListOf(TinPrefs.profile(ctx, 0), TinPrefs.profile(ctx, 1)) }
-        val voices = remember { mutableStateMapOf(0 to profiles[0].relief(), 1 to profiles[1].relief()) }
+        val ver by TinPrefs.version.collectAsState()
+        val profiles = remember(ver) { mutableStateListOf(TinPrefs.profile(ctx, 0), TinPrefs.profile(ctx, 1)) }
+        val voices = remember(ver) { mutableStateMapOf(0 to profiles[0].relief(), 1 to profiles[1].relief()) }
         var timer by remember { mutableIntStateOf(30) }
 
         fun pushAll() { SoundEngine.set(voices[0] ?: SoundEngine.Voice(), voices[1] ?: SoundEngine.Voice()) }
