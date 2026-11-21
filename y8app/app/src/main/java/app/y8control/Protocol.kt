@@ -32,18 +32,15 @@ object Proto {
         return ByteArray(clean.length / 2) { clean.substring(it * 2, it * 2 + 2).toInt(16).toByte() }
     }
 
-    /** Divide una notifica in pacchetti (di solito uno solo). */
+    /**
+     * Le cuffie rispondono con intestazione A5 (le richieste usano AA).
+     * Il campo lunghezza delle risposte non è affidabile (GA dice 04 ma porta 5 byte),
+     * quindi ogni notifica è trattata come un pacchetto intero: A5 C1 C2 LEN DATI… CHK.
+     */
     fun split(bytes: ByteArray): List<ByteArray> {
-        val out = mutableListOf<ByteArray>()
-        var i = 0
-        while (i < bytes.size) {
-            if ((bytes[i].toInt() and 0xFF) != 0xAA || i + 4 > bytes.size) { i++; continue }
-            val len = bytes[i + 3].toInt() and 0xFF
-            val end = minOf(bytes.size, i + 5 + len)
-            out += bytes.copyOfRange(i, end)
-            i = end
-        }
-        return out
+        if (bytes.size < 5) return emptyList()
+        val h = bytes[0].toInt() and 0xFF
+        return if (h == 0xA5 || h == 0xAA) listOf(bytes) else emptyList()
     }
 }
 

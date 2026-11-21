@@ -38,6 +38,7 @@ object Headset {
     private var writeChar: BluetoothGattCharacteristic? = null
     private val queue = ArrayDeque<ByteArray>()
     private var writing = false
+    private var writeToken = 0
     private var wanted = false
     private var scanning = false
     private var lastPoll = 0L
@@ -144,7 +145,7 @@ object Headset {
     private fun retryLater() {
         if (!wanted) return
         _state.update { it.copy(conn = Conn.OFF) }
-        main.postDelayed({ if (wanted && gatt == null && !scanning) scan() }, 10_000)
+        main.postDelayed({ if (wanted && gatt == null && !scanning) scan() }, 3_000)
     }
 
     private fun connect(device: BluetoothDevice, name: String?) {
@@ -214,7 +215,7 @@ object Headset {
             main.post {
                 if (c.uuid != Proto.NOTIFY) log("(da ${short(c.uuid)})")
                 val pk = Proto.split(copy)
-                if (pk.isEmpty()) log("<< grezzo ${Proto.hex(copy)}") else pk.forEach { handle(it) }
+                if (pk.isEmpty()) log("<< ? ${Proto.hex(copy)}") else pk.forEach { handle(it) }
             }
         }
 
@@ -275,10 +276,16 @@ object Headset {
         val type = if (c.properties and BluetoothGattCharacteristic.PROPERTY_WRITE != 0)
             BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT else BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
         val rc = g.writeCharacteristic(c, f, type)
-        log(">> ${Proto.hex(f)}" + (if (type == BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE) " [nr]" else "") +
-            (if (rc != 0) "  (errore $rc)" else ""))
+        if (rc == 201) { // stack occupato: riprova tra poco
+            queue.addFirst(f)
+            main.postDelayed({ pump() }, 120)
+            return
+        }
+        log(">> ${Proto.hex(f)}" + if (rc != 0) "  (errore $rc)" else "")
+        if (rc != 0) { main.postDelayed({ pump() }, 50); return }
         writing = true
-        main.postDelayed({ if (writing) { writing = false; pump() } }, 600)
+        val token = ++writeToken
+        main.postDelayed({ if (writing && writeToken == token) { writing = false; pump() } }, 2000)
     }
 
     // ---------------- risposte ----------------
@@ -289,8 +296,8 @@ object Headset {
         log("<< ${Proto.hex(p)}")
         if (p.size < 5) return
         val cmd = String(byteArrayOf(p[1], p[2]), Charsets.US_ASCII)
-        val len = u(p[3])
-        val d = p.copyOfRange(4, minOf(p.size, 4 + len))
+        // dati = dal byte 4 fino al penultimo (l'ultimo è il checksum)
+        val d = p.copyOfRange(4, p.size - 1)
         fun at(i: Int) = if (i < d.size) u(d[i]) else null
         when (cmd) {
             "GA" -> _state.update {
@@ -308,6 +315,7 @@ object Headset {
             "GM" -> _state.update { it.copy(game = at(0) == 1) }
             "PL" -> _state.update { it.copy(playing = at(0) == 1) }
             "LS" -> if (at(0) == 0) log("Audio Bluetooth disconnesso")
+            "SQ" -> {}
             "SW" -> send("GE")
             "SL" -> send("GE")
             "GE" -> {

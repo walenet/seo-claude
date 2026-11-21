@@ -43,7 +43,19 @@ AA | C1 | C2 | LEN | DATA[LEN] | SUM
 - `C1 C2` = comando di due lettere ASCII (es. `AC` = 0x41 0x43)
 - `SUM` = somma di tutti i byte precedenti (incluso `AA`) & 0xFF
 - Le richieste "di lettura" mandano `LEN=1, DATA=00`
-- Le risposte hanno lo stesso formato; i dati partono dal byte 4
+- **Risposte (verificato sulle cuffie, fw 1.7.13):** iniziano con **`A5`** invece di `AA`.
+  I dati vanno dal byte 4 al penultimo; l'ultimo è un checksum (non è la semplice somma).
+  Il campo LEN delle risposte non è affidabile (GA riporta `04` ma contiene 5 byte).
+
+Esempi reali:
+```
+>> AA 47 41 01 00 33          << A5 47 41 04 01 07 01 00 00 74   (ANC=1, EQ=7, play=1, LDAC=0, multipoint=0)
+>> AA 42 56 01 00 43          << A5 42 56 02 3E 01 EC            (batteria 62%)
+>> AA 53 46 01 00 44          << A5 53 46 03 01 07 0D 03         (firmware 1.7.13)
+>> AA 47 45 01 00 37          << A5 47 45 0A 02 05 03 00 FF 00 00 01 02 01 61  (EQ 10 bande)
+```
+- La Y8+ dell'autore è la variante **a 10 bande** (`Y8_PLUS`).
+- Accendendo LDAC (`LC 1`) la connessione BLE cade per qualche secondo: va ricollegata.
 
 Esempio: stato completo → `AA 47 41 01 00 33`
 
