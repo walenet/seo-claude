@@ -36,7 +36,8 @@ object Headset {
 
     private var gatt: BluetoothGatt? = null
     private var writeChar: BluetoothGattCharacteristic? = null
-    private val queue = ArrayDeque<ByteArray>()
+    private val queue = ArrayDeque<Pair<BluetoothGattCharacteristic, ByteArray>>()
+    private var rcspChar: BluetoothGattCharacteristic? = null
     private var writing = false
     private var writeToken = 0
     private var wanted = false
@@ -163,7 +164,7 @@ object Headset {
                 log("BLE disconnesso (status $status)")
                 g.close()
                 if (gatt == g) gatt = null
-                writeChar = null; queue.clear(); writing = false
+                writeChar = null; rcspChar = null; queue.clear(); writing = false
                 retryLater()
             }
         }.let {}
@@ -180,6 +181,7 @@ object Headset {
             }
             writeChar = svc.getCharacteristic(Proto.WRITE)
             if (writeChar == null) { log("Caratteristica FAA1 mancante"); return@post }
+            rcspChar = g.getService(Rcsp.SERVICE)?.getCharacteristic(Rcsp.WRITE)
             // attiva notifiche/indicazioni su TUTTE le caratteristiche che le supportano (servizi non standard)
             cccdQueue.clear()
             g.services.filter { !short(it.uuid).startsWith("180") }.forEach { sv ->
@@ -213,6 +215,7 @@ object Headset {
         override fun onCharacteristicChanged(g: BluetoothGatt, c: BluetoothGattCharacteristic, value: ByteArray) {
             val copy = value.copyOf()
             main.post {
+                if ((copy.firstOrNull()?.toInt() ?: 0) and 0xFF == 0xFE) { Rcsp.onPacket(copy); return@post }
                 if (c.uuid != Proto.NOTIFY) log("(da ${short(c.uuid)})")
                 val pk = Proto.split(copy)
                 if (pk.isEmpty()) log("<< ? ${Proto.hex(copy)}") else pk.forEach { handle(it) }
@@ -257,27 +260,38 @@ object Headset {
         _state.update { it.copy(conn = Conn.CONNECTED) }
         log("Pronte ✔")
         refreshAll()
+        main.postDelayed({ Rcsp.query() }, 1500)
     }
 
     // ---------------- invio ----------------
 
+    /** Invio di un pacchetto RCSP JieLi sul canale AE01 */
+    fun sendRcsp(packet: ByteArray) {
+        val c = rcspChar
+        if (c == null) { log("Canale RCSP (AE01) non disponibile"); return }
+        queue.addLast(Pair(c, packet))
+        pump()
+    }
+
     fun send(cmd: String, data: ByteArray = byteArrayOf(0)) {
         val f = Proto.frame(cmd, data)
-        if (writeChar == null) { log("Non connesse, ignoro $cmd"); return }
-        queue.addLast(f)
+        val c = writeChar
+        if (c == null) { log("Non connesse, ignoro $cmd"); return }
+        queue.addLast(Pair(c, f))
         pump()
     }
 
     private fun pump() {
         val g = gatt ?: return
-        val c = writeChar ?: return
         if (writing || queue.isEmpty()) return
-        val f = queue.removeFirst()
+        val item = queue.removeFirst()
+        val c = item.first
+        val f = item.second
         val type = if (c.properties and BluetoothGattCharacteristic.PROPERTY_WRITE != 0)
             BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT else BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
         val rc = g.writeCharacteristic(c, f, type)
         if (rc == 201) { // stack occupato: riprova tra poco
-            queue.addFirst(f)
+            queue.addFirst(item)
             main.postDelayed({ pump() }, 120)
             return
         }

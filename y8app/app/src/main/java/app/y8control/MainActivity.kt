@@ -169,6 +169,8 @@ fun Screen() {
             }
         }
 
+        item { AdvancedAncSection(connected) }
+
         item {
             Section("Modalità rapide") {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -358,5 +360,50 @@ fun ToolsSection(logs: List<String>) {
         }
         Text("Registro", fontWeight = FontWeight.SemiBold)
         logs.take(40).forEach { Text(it, fontFamily = FontFamily.Monospace, fontSize = 11.sp) }
+    }
+}
+
+@Composable
+fun AdvancedAncSection(connected: Boolean) {
+    val r by Rcsp.state.collectAsState()
+    Section("ANC avanzato (sperimentale, RCSP JieLi)") {
+        Text(
+            when {
+                !r.responded -> "Nessuna risposta dal canale JieLi finora."
+                r.lastStatus != null && r.lastStatus != 0 -> "Le cuffie rispondono con errore ${r.lastStatus}: probabile autenticazione richiesta."
+                r.modes.isEmpty() && r.current == null -> "Le cuffie rispondono ma non riportano livelli ANC."
+                else -> "Livelli ANC disponibili ✔"
+            }, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        r.current?.let { c ->
+            Text("Attuale: ${Presets.ANC.getOrElse(c.mode) { "?" }} · livello ${c.leftCur}/${c.leftMax}")
+        }
+        val modes = if (r.modes.isNotEmpty()) r.modes.values.sortedBy { it.mode } else listOfNotNull(r.current)
+        modes.filter { it.leftMax > 0 || it.rightMax > 0 }.forEach { m ->
+            val max = maxOf(m.leftMax, m.rightMax)
+            var lv by remember(m) { mutableFloatStateOf(maxOf(m.leftCur, m.rightCur).toFloat()) }
+            Text("${Presets.ANC.getOrElse(m.mode) { "Modo ${m.mode}" }}: livello ${lv.roundToInt()} / $max",
+                fontWeight = FontWeight.SemiBold)
+            Slider(value = lv, onValueChange = { lv = it }, valueRange = 0f..max.toFloat(),
+                onValueChangeFinished = { Rcsp.setNoise(m.mode, lv.roundToInt()) })
+            if (m.mode == 1) Text("Al massimo può comparire fruscio o pressione: torna indietro se dà fastidio.",
+                fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if (r.attrs.isNotEmpty()) {
+            Text("Funzioni riportate:", fontWeight = FontWeight.SemiBold)
+            r.attrs.forEach { (k, v) -> Text("• ${Rcsp.ATTR_NAMES[k] ?: "attr $k"} ($k): $v", fontSize = 12.sp) }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = { Rcsp.query() }, enabled = connected) { Text("Leggi") }
+            OutlinedButton(onClick = { Rcsp.queryTargetInfo() }, enabled = connected) { Text("Info chip") }
+        }
+        var op by remember { mutableStateOf("07") }
+        var par by remember { mutableStateOf("FF FFFFFFFF") }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            OutlinedTextField(op, { op = it.take(2) }, Modifier.width(72.dp), label = { Text("Op") }, singleLine = true)
+            OutlinedTextField(par, { par = it }, Modifier.weight(1f), label = { Text("Parametri hex") }, singleLine = true)
+            Button(onClick = {
+                try { Rcsp.sendRaw(op.toInt(16), Proto.parseHex(par)) } catch (e: Exception) { Headset.log("Hex non valido") }
+            }, enabled = connected) { Text("Invia") }
+        }
     }
 }
