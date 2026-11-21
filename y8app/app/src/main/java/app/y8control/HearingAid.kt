@@ -34,6 +34,8 @@ object HearingAid {
     @Volatile var voiceDb = 6f        // enfasi delle voci
     @Volatile var noiseReduction = true
     @Volatile var cutRumble = true
+    @Volatile var callMode = true     // canale chiamata (bassa latenza)
+    @Volatile var headsetMic = true   // microfono delle cuffie invece di quello del telefono
     @Volatile private var paramsVersion = 0
 
     fun paramsChanged() { paramsVersion++ }
@@ -83,11 +85,32 @@ object HearingAid {
     @SuppressLint("MissingPermission")
     private fun loop(ctx: Context) {
         Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO)
-        val fs = 48000
         val am = ctx.getSystemService(AudioManager::class.java)
+        // Modalità chiamata: canale HFP/SCO, buffer minimi (latenza ~30-60 ms invece di 150-300 ms dell'A2DP)
+        var call = callMode
+        var scoDev: AudioDeviceInfo? = null
+        if (call) {
+            scoDev = am.availableCommunicationDevices.firstOrNull { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO }
+            if (scoDev == null) {
+                Headset.log("Canale chiamata delle cuffie non disponibile: uso il canale musica")
+                call = false
+            } else {
+                am.mode = AudioManager.MODE_IN_COMMUNICATION
+                val ok = am.setCommunicationDevice(scoDev)
+                Headset.log("Canale chiamata attivato: $ok")
+                // attesa che il collegamento SCO si apra
+                var t = 0
+                while (am.communicationDevice?.type != AudioDeviceInfo.TYPE_BLUETOOTH_SCO && t < 30 && !stopFlag) {
+                    Thread.sleep(100); t++
+                }
+            }
+        }
+        val fs = if (call) 16000 else 48000
         val unprocessed = am.getProperty(AudioManager.PROPERTY_SUPPORT_AUDIO_SOURCE_UNPROCESSED) == "true"
-        // VOICE_PERFORMANCE = percorso a bassa latenza pensato per ascolto dal vivo (karaoke/monitor)
-        val source = MediaRecorder.AudioSource.VOICE_PERFORMANCE
+        val source = when {
+            call -> MediaRecorder.AudioSource.VOICE_RECOGNITION   // niente cancellazione d'eco che taglierebbe le voci
+            else -> MediaRecorder.AudioSource.VOICE_PERFORMANCE  // percorso a bassa latenza per ascolto dal vivo
+        }
 
         val inMin = AudioRecord.getMinBufferSize(fs, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
         val outMin = AudioTrack.getMinBufferSize(fs, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT)
@@ -102,14 +125,15 @@ object HearingAid {
                 .setBufferSizeInBytes(inMin)
                 .build()
             rec = mic
+            val wantType = if (call && headsetMic) AudioDeviceInfo.TYPE_BLUETOOTH_SCO else AudioDeviceInfo.TYPE_BUILTIN_MIC
             am.getDevices(AudioManager.GET_DEVICES_INPUTS)
-                .firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_MIC }
+                .firstOrNull { it.type == wantType }
                 ?.let { mic.setPreferredDevice(it) }
             if (NoiseSuppressor.isAvailable()) ns = NoiseSuppressor.create(mic.audioSessionId)
 
             val out = AudioTrack.Builder()
                 .setAudioAttributes(AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setUsage(if (call) AudioAttributes.USAGE_VOICE_COMMUNICATION else AudioAttributes.USAGE_MEDIA)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
                 .setAudioFormat(AudioFormat.Builder().setSampleRate(fs)
                     .setChannelMask(AudioFormat.CHANNEL_OUT_MONO).setEncoding(AudioFormat.ENCODING_PCM_16BIT).build())
@@ -118,16 +142,18 @@ object HearingAid {
                 .setTransferMode(AudioTrack.MODE_STREAM)
                 .build()
             track = out
-            var frames = out.setBufferSizeInFrames(96 * 4)
+            val n = fs / 500 // blocchi da 2 ms
+            if (call) scoDev?.let { out.setPreferredDevice(it) }
+            var frames = out.setBufferSizeInFrames(n * 4)
             val sup = ns
 
             mic.startRecording()
             out.play()
-            Headset.log("Microfono bassa latenza, buffer uscita $frames campioni (${frames * 1000 / fs} ms), NS: ${sup != null}, unprocessed: $unprocessed")
+            Headset.log("Apparecchio: ${if (call) "canale CHIAMATA 16 kHz" else "canale musica 48 kHz"}, " +
+                "mic ${if (call && headsetMic) "cuffie" else "telefono"}, buffer ${frames * 1000 / fs} ms")
 
             val hp = Biquad(); val pk = Biquad()
             var seen = -1
-            val n = 96 // 2 ms
             var underruns = out.underrunCount
             var lastCheck = System.currentTimeMillis()
             val buf = ShortArray(n)
@@ -170,8 +196,8 @@ object HearingAid {
                 if (now - lastCheck > 1000) {
                     lastCheck = now
                     val u = out.underrunCount
-                    if (u > underruns && frames < 96 * 20) {
-                        frames = out.setBufferSizeInFrames(frames + 96)
+                    if (u > underruns && frames < n * 20) {
+                        frames = out.setBufferSizeInFrames(frames + n)
                         Headset.log("Buffer uscita → $frames campioni")
                     }
                     underruns = u
@@ -183,6 +209,10 @@ object HearingAid {
             try { rec?.stop() } catch (_: Exception) {}
             try { track?.stop() } catch (_: Exception) {}
             ns?.release(); rec?.release(); track?.release()
+            if (call) {
+                try { am.clearCommunicationDevice() } catch (_: Exception) {}
+                am.mode = AudioManager.MODE_NORMAL
+            }
             _running.value = false
             Headset.log("Apparecchio acustico fermato")
         }

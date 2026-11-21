@@ -214,8 +214,8 @@ fun Screen() {
 
         item {
             Section("👂 Apparecchio acustico") {
-                Text("Usa il microfono del telefono e amplifica le voci nelle cuffie. " +
-                    "Tieni il telefono verso chi parla. Ritardo di circa 0,1–0,2 s dovuto al Bluetooth.",
+                Text("Amplifica le voci nelle cuffie. Con il canale chiamata il ritardo è minimo " +
+                    "(la musica si mette in pausa). Cambiare canale o microfono: spegni e riaccendi.",
                     fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 var lowLat by remember { mutableStateOf(Prefs.haLowLatency) }
                 SwitchRow("Attivo", hearing, "Inizia con volume basso") { on ->
@@ -243,7 +243,15 @@ fun Screen() {
                 SwitchRow("Taglia rombo (vento, traffico)", hp) {
                     hp = it; HearingAid.cutRumble = it; HearingAid.paramsChanged(); Prefs.saveHearing()
                 }
-                SwitchRow("Riduci ritardo (game mode automatica)", lowLat) { lowLat = it; Prefs.haLowLatency = it }
+                var call by remember { mutableStateOf(HearingAid.callMode) }
+                var hsMic by remember { mutableStateOf(HearingAid.headsetMic) }
+                SwitchRow("Canale chiamata (bassa latenza)", call, "Consigliato. Qualità voce, ritardo ~30-60 ms") {
+                    call = it; HearingAid.callMode = it; Prefs.saveHearing()
+                }
+                if (call) SwitchRow("Microfono delle cuffie", hsMic, "Capta all'altezza delle orecchie. Se fischia, abbassa il volume o usa il telefono") {
+                    hsMic = it; HearingAid.headsetMic = it; Prefs.saveHearing()
+                }
+                if (!call) SwitchRow("Riduci ritardo (game mode automatica)", lowLat) { lowLat = it; Prefs.haLowLatency = it }
             }
         }
 
@@ -263,7 +271,7 @@ fun Screen() {
 }
 
 private fun startHearing(ctx: android.content.Context) {
-    if (Prefs.haLowLatency && Headset.state.value.conn == Conn.CONNECTED) Headset.setGame(true)
+    if (!HearingAid.callMode && Prefs.haLowLatency && Headset.state.value.conn == Conn.CONNECTED) Headset.setGame(true)
     HearingAid.start(ctx)
     HeadsetService.start(ctx, HeadsetService.ACTION_REFRESH_FG)
 }

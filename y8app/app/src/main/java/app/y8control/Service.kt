@@ -38,6 +38,8 @@ object Prefs {
         HearingAid.voiceDb = sp.getFloat("ha_voice", 6f)
         HearingAid.noiseReduction = sp.getBoolean("ha_nr", true)
         HearingAid.cutRumble = sp.getBoolean("ha_hp", true)
+        HearingAid.callMode = sp.getBoolean("ha_call", true)
+        HearingAid.headsetMic = sp.getBoolean("ha_hsmic", true)
         Headset.eightBandFactor = sp.getFloat("eq8_factor", 1f).toDouble()
     }
 
@@ -53,7 +55,8 @@ object Prefs {
 
     fun saveHearing() {
         sp.edit().putFloat("ha_gain", HearingAid.gainDb).putFloat("ha_voice", HearingAid.voiceDb)
-            .putBoolean("ha_nr", HearingAid.noiseReduction).putBoolean("ha_hp", HearingAid.cutRumble).apply()
+            .putBoolean("ha_nr", HearingAid.noiseReduction).putBoolean("ha_hp", HearingAid.cutRumble)
+            .putBoolean("ha_call", HearingAid.callMode).putBoolean("ha_hsmic", HearingAid.headsetMic).apply()
     }
 
     fun saveFactor() = sp.edit().putFloat("eq8_factor", Headset.eightBandFactor.toFloat()).apply()
