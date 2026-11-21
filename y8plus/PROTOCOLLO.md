@@ -146,3 +146,17 @@ Connettiti a "Y8+", apri il servizio `FAA0`, attiva le notifiche su `FAA2` e scr
 | EQ Default … Personalizzato | `AA 45 51 01 0X SS` (X = 0…7, SS = 41+X) |
 | Spegnimento tra 30 min | `AA 4F 44 01 1E 5C` |
 | Annulla spegnimento | `AA 43 4C 01 00 3A` |
+
+## Appendice: canale JieLi RCSP (verificato, fw 1.7.13)
+
+- Servizio `AE00`: scrittura `AE01` (write without response), notifiche `AE02`.
+- Pacchetto: `FE DC BA | flag | opcode | len(2, BE) | sn | parametri | EF`
+  (flag `C0` = comando con risposta; le risposte hanno flag `00` e iniziano con `status, sn`).
+- **Non serve autenticazione**: le cuffie rispondono ai comandi RCSP senza la sequenza di auth JieLi
+  (che comunque non ricevono risposta).
+- `GET_SYS_INFO` (07) funzione `FF` restituisce solo l'attributo 15 (stato telefonata):
+  **niente livelli ANC, assistenza all'udito, anti-vento o rinforzo voce** su questo firmware.
+- Le cuffie inviano notifiche periodiche `C2` (ADV, ogni ~0,5 s) con VID `05D6` e dati di stato;
+  si possono fermare con il comando `C3 00`.
+- Durante il canale chiamata (HFP) le cuffie inviano `09 … FF 02 0F 01` (stato telefonata = 1)
+  e spengono l'ANC.
