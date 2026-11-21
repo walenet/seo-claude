@@ -257,6 +257,9 @@ fun Screen() {
             }
         }
 
+        item { TestSection() }
+        item { TinnitusSection() }
+
         item {
             Section("Musica") {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

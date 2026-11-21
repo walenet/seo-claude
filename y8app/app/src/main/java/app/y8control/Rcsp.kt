@@ -119,6 +119,7 @@ object Rcsp {
 
     fun startAuth() {
         authOk = false
+        advCount = 0
         if (!JlAuth.selfTest()) { setAuth("cifrario errato (self-test fallito)"); return }
         setAuth("in corso…")
         Headset.log("RCSP: avvio autenticazione JieLi")
@@ -155,9 +156,20 @@ object Rcsp {
 
     // ---------------- ricezione ----------------
 
+    private var advCount = 0
+
     fun onPacket(p: ByteArray) {
-        Headset.log("RCSP << ${Proto.hex(p)}")
         if (p.size < 8) return
+        // C2 = notifica periodica di stato (ogni ~0,5 s): la registro una volta e chiedo di fermarla
+        if ((p[4].toInt() and 0xFF) == 0xC2) {
+            advCount++
+            if (advCount == 1) {
+                Headset.log("RCSP stato periodico (C2): ${Proto.hex(p)}")
+                Headset.sendRcsp(packet(0xC3, byteArrayOf(0), needResponse = true))
+            }
+            return
+        }
+        Headset.log("RCSP << ${Proto.hex(p)}")
         val flag = p[3].toInt() and 0xFF
         val op = p[4].toInt() and 0xFF
         val len = ((p[5].toInt() and 0xFF) shl 8) or (p[6].toInt() and 0xFF)
